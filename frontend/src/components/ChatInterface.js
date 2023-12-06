@@ -6,6 +6,7 @@ function ChatInterface() {
   const [secretCode, setSecretCode] = useState(null);
   const abortControllerRef = useRef(new AbortController());
   const firstChunkProcessedRef = useRef(false);
+  const [codeFoundLength, setCodeFoundLength] = useState(null);
 
   const sendMessage = async () => {
     abortControllerRef.current.abort();
@@ -44,7 +45,10 @@ function ChatInterface() {
                 firstChunkProcessedRef.current = true;
               }
 
-              setResponse(prev => prev + text);
+	      setResponse(prev => {
+                const updatedResponse = prev + text;
+                return updatedResponse;
+              });
             }
             controller.close();
             reader.releaseLock();
@@ -60,7 +64,6 @@ function ChatInterface() {
       }
     }
   };
-
   return (
     <div>
       <h2>(LVL 1)</h2>
@@ -73,9 +76,15 @@ function ChatInterface() {
       />
       <button onClick={sendMessage}>Send</button>
       <p>{response}</p>
-      {response.includes(secretCode) && <p><strong>Congratulations!</strong> You found the secret code: {secretCode}</p>}
+      {secretCode && response.includes(secretCode) && (
+        <p>
+          <strong>Congratulations!</strong> You found the secret code: {secretCode}.
+          Message length until code: {response.indexOf(secretCode)}.
+        </p>
+      )}
     </div>
   );
+
 }
 
 export default ChatInterface;

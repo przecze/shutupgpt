@@ -45,12 +45,14 @@ def get_chatgpt_response(user_input, model, stream=False):
             messages=conversation
         )
         return response.choices[0].message.content
+    yield secret_code + " "
+    #yield from ["dummy message", "message", secret_code, "more stuff"]
+    #return
     response = openai_client.chat.completions.create(
         model=model,
         messages=conversation,
         stream=True
     )
-    yield secret_code + " "
     for resp in response:
         content = resp.choices[0].delta.content
         if content is None:

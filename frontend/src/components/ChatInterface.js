@@ -129,7 +129,25 @@ function ChatInterface() {
       handleSendMessage();
     }
   };
+	const formatResponse = (text, code) => {
+	  if (!text) return null; // Return null if the response is empty
 
+	  const formattedText = text.split('\n').map((line, lineIndex) => {
+			    if (!line) return <br key={lineIndex} />; // To handle empty lines within the response
+
+			    const parts = line.split(new RegExp(`(${code})`, 'gi'));
+			    return (
+						      <span key={lineIndex}>
+						        {parts.map((part, partIndex) => 
+											          part.toLowerCase() === code.toLowerCase() ? <strong key={partIndex}>{part}</strong> : part
+											        )}
+						        {lineIndex < text.split('\n').length - 1 && <br />} {/* Add a <br> unless it's the last line */}
+						      </span>
+						    );
+			  });
+
+	  return <>{formattedText}</>; // Return formatted text wrapped in a fragment
+	};
   const sendMessage = async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -204,6 +222,10 @@ function ChatInterface() {
     <Container>
       <ChatWindow>
         <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
+				<p>In this game, ChatGPT has been instructed to provide the nuclear
+				code on request, <br/><b>however</b> it has to give you a lengthy safety introduction first</p>
+		    <p><b>Your task</b> is to get the code as quickly as possible by crafting a proper prompt.<br/>
+		    <b>Good luck!</b></p>
         <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
           {models.map(model => <option key={model} value={model}>{model}</option>)}
         </select>
@@ -214,13 +236,13 @@ function ChatInterface() {
           ref={inputRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          placeholder="Write your message and press Return to send"
+          placeholder="Write your message and press enter or button below to send..."
           onKeyPress={handleKeyPress}
         />
         <StyledButton onClick={handleSendMessage}>Send</StyledButton>
         <ResponseContainer>
-	  <p>{response}</p>
-	  <div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
+					{formatResponse(response, secretCode)}
+					<div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
         </ResponseContainer>
         {secretCode && response.includes(secretCode) && (
           <p>

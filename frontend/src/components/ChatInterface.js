@@ -57,6 +57,17 @@ const StyledButton = styled.button`
   }
 `;
 
+const ResponseContainer = styled.div`
+  height: 150px; // Set the height you want for the output area
+  overflow-y: auto; // This will create a vertical scrollbar when the content overflows
+  background: #f9f9f9; // Just an example color, change as needed
+  padding: 10px;
+  flex-direction: column-reverse;
+  border-radius: 4px;
+  margin: 10px 0; // Adds some space around the container
+  box-shadow: inset 0 0 5px rgba(0,0,0,0.2); // Optional: adds an inner shadow to indicate it's scrollable
+`;
+
 // Then use these styled components in place of the regular tags
 
 
@@ -74,11 +85,23 @@ function ChatInterface() {
 
   const inputRef = useRef(null); // Ref for the input element
 
+  const responseEndRef = useRef(null); // Ref for the element at the end of the messages
+  const scrollToBottom = () => {
+    if (responseEndRef.current) {
+      responseEndRef.current.scrollIntoView();
+    }
+  }
+  useEffect(() => {
+    scrollToBottom();
+  }, [response]); // Scroll to bottom when response changes
+
+
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus(); // Set focus when component mounts
     }
   }, []);
+
   useEffect(() => {
     const fetchSchema = async () => {
       const response = await fetch('/api/config/schema');
@@ -176,6 +199,7 @@ function ChatInterface() {
       }
     }
   };
+ 
   return (
     <Container>
       <ChatWindow>
@@ -191,15 +215,17 @@ function ChatInterface() {
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Write your message and press Return to send"
-          style={{ width: '100%', height: '100px' }} // Adjust size as needed
           onKeyPress={handleKeyPress}
         />
         <StyledButton onClick={handleSendMessage}>Send</StyledButton>
-        <p>{response}</p>
+        <ResponseContainer>
+	  <p>{response}</p>
+	  <div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
+        </ResponseContainer>
         {secretCode && response.includes(secretCode) && (
           <p>
-            <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.
-            Message length until code: {response.indexOf(secretCode)}.
+            <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.<br/>
+            Message length until code: <b>{response.indexOf(secretCode)}.</b>
           </p>
         )}
       </ChatWindow>

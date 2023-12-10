@@ -1,4 +1,64 @@
 import React, { useState, useEffect, useRef } from 'react';
+// Importing styled-components for styling
+import styled from 'styled-components';
+
+
+const Container = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100vh; // This takes the full height of the viewport
+  padding: 20px;
+  box-sizing: border-box;
+`;
+
+const ChatWindow = styled.div`
+  width: 100%; // Adjust width as needed
+  max-width: 600px; // Set a max-width for larger screens
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+`;
+// Define Styled Components outside of the render method
+const StyledTextArea = styled.textarea`
+  background: #f4f4f4;
+  border: 2px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  font-size: 16px;
+  font-family: 'Cormorant Garamond', serif;
+  width: 100%;
+  height: 100px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.3s;
+
+  &:focus {
+    border-color: #9b9b9b;
+    outline: none;
+  }
+`;
+
+const StyledButton = styled.button`
+  background-image: linear-gradient(to right, #f6d365 0%, #fda085 100%);
+  border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 18px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`;
+
+// Then use these styled components in place of the regular tags
+
 
 function ChatInterface() {
   const [message, setMessage] = useState('');
@@ -6,7 +66,6 @@ function ChatInterface() {
   const [secretCode, setSecretCode] = useState(null);
   const abortControllerRef = useRef(new AbortController());
   const firstChunkProcessedRef = useRef(false);
-  const [codeFoundLength, setCodeFoundLength] = useState(null);
 
   const [models, setModels] = useState([]);
   const [promptLevels, setPromptLevels] = useState([]);
@@ -37,10 +96,14 @@ function ChatInterface() {
     fetchSchema();
   }, []);
 
+  const handleSendMessage = () => {
+        sendMessage();
+  };
+
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      sendMessage();
+      handleSendMessage();
     }
   };
 
@@ -96,7 +159,7 @@ function ChatInterface() {
               }
               controller.close();
 	    } catch (error) {
-	      if (error.name != 'AbortError') {
+	      if (error.name !== 'AbortError') {
 	        throw error;
 	      }
 	    } finally {
@@ -114,30 +177,33 @@ function ChatInterface() {
     }
   };
   return (
-    <div>
-      <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
-      <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-        {models.map(model => <option key={model} value={model}>{model}</option>)}
-      </select>
-      <select value={selectedPromptLevel} onChange={(e) => setSelectedPromptLevel(e.target.value)}>
-        {promptLevels.map(level => <option key={level} value={level}>{level}</option>)}
-      </select>
-      <textarea
-        ref={inputRef}
-        value={message}
-        onChange={(e) => setMessage(e.target.value)}
-        placeholder="Write your message and press Return to send"
-        style={{ width: '100%', height: '100px' }} // Adjust size as needed
-        onKeyPress={handleKeyPress}
-      />
-      <p>{response}</p>
-      {secretCode && response.includes(secretCode) && (
-        <p>
-          <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.
-          Message length until code: {response.indexOf(secretCode)}.
-        </p>
-      )}
-    </div>
+    <Container>
+      <ChatWindow>
+        <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
+        <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+          {models.map(model => <option key={model} value={model}>{model}</option>)}
+        </select>
+        <select value={selectedPromptLevel} onChange={(e) => setSelectedPromptLevel(e.target.value)}>
+          {promptLevels.map(level => <option key={level} value={level}>{level}</option>)}
+        </select>
+        <StyledTextArea
+          ref={inputRef}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder="Write your message and press Return to send"
+          style={{ width: '100%', height: '100px' }} // Adjust size as needed
+          onKeyPress={handleKeyPress}
+        />
+        <StyledButton onClick={handleSendMessage}>Send</StyledButton>
+        <p>{response}</p>
+        {secretCode && response.includes(secretCode) && (
+          <p>
+            <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.
+            Message length until code: {response.indexOf(secretCode)}.
+          </p>
+        )}
+      </ChatWindow>
+    </Container>
   );
 
 }

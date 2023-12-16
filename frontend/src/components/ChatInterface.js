@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Importing styled-components for styling
 import styled from 'styled-components';
-import { FaGithub } from 'react-icons/fa'; // Importing GitHub icon from react-icons
+import { FaGithub, FaBars } from 'react-icons/fa'; // Importing GitHub icon from react-icons
 
 
 const Container = styled.div`
@@ -69,17 +69,45 @@ const ResponseContainer = styled.div`
   box-shadow: inset 0 0 5px rgba(0,0,0,0.2); // Optional: adds an inner shadow to indicate it's scrollable
 `;
 
+const SidebarToggle = styled.button`
+  background-image: linear-gradient(to right, #f6d365 0%, #fda085 100%);
+  position: fixed;
+  left: 10px;
+  top: 10px;
+  border: none;
+  border-radius: 50%;
+  padding: 0.5em;
+  font-size: 1.5em;
+  color: white;
+  z-index: 100; // Ensure it's above other content
+
+  @media (max-width: 768px) { // Adjust as needed for your mobile breakpoint
+    display: block; // Show the toggle button on mobile
+  }
+`;
+
 const Sidebar = styled.div`
   position: fixed;
-  left: 0;
+  z-index: 99; // Ensure it's above other content
+  left: -200px; // Move the sidebar off-screen
   top: 0;
   width: 200px; // Adjust width as needed
   height: 100vh;
   background-color: #f4f4f4; // Adjust the color as needed
   padding: 20px;
+  padding-top: 80px;
   box-shadow: 2px 0 5px rgba(0,0,0,0.1);
   display: flex;
+  transition: transform 0.3s ease-in-out;
   flex-direction: column;
+  @media (max-width: 768px) {
+    transform: translateX(-100%); // Hide the sidebar off-screen
+    transition: transform 0.3s ease-in-out;
+  }
+
+  &.active {
+    left: 0;
+  }
 `;
 
 const StyledLink = styled.a`
@@ -116,10 +144,18 @@ function ChatInterface() {
   const [promptLevels, setPromptLevels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedPromptLevel, setSelectedPromptLevel] = useState('');
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+
 
   const inputRef = useRef(null); // Ref for the input element
 
   const responseEndRef = useRef(null); // Ref for the element at the end of the messages
+
+  const toggleSidebar = () => {
+    console.log('toggleSidebar');
+    setSidebarVisible(!sidebarVisible);
+  }
+
   const scrollToBottom = () => {
     if (responseEndRef.current) {
       responseEndRef.current.scrollIntoView();
@@ -255,64 +291,69 @@ function ChatInterface() {
   };
  
   return (
-    <Container>
-      <Sidebar>
-        About the author:
-        <StyledLink href="https://janczechowski.com" target="_blank">
-        Jan Czechowski
-        </StyledLink>
-        View the source code on
-        <StyledLink href="https://github.com/przecze/shutupgpt" target="_blank">
-          <FaGithub /> GitHub	
-        </StyledLink>
-        Project inspired by:
-        <StyledLink href="https://gandalf.lakera.ai/" target="_blank">
-            Gandalf Game by lakera.ai
-        </StyledLink>
-        About the models:
-	<StyledListLink href="https://platform.openai.com/docs/models/overview" target="_blank">
-	    OpenAI (gpt-3.5 & gpt-4)
-	</StyledListLink>
-        <StyledListLink href="https://deepinfra.com/mistralai/Mixtral-8x7B-Instruct-v0.1" target="_blank">
-            Mixtral 8x7B Instruct v0.1
-        </StyledListLink>
-        <StyledLink href="https://deepinfra.com/meta-llama/Llama-2-7b-chat-hf" target="_blank">
-	    Llama 2 7B Chat
-        </StyledLink>
-	
-      </Sidebar>
-      <ChatWindow>
-        <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
-				<p>In this game, ChatGPT has been instructed to provide the nuclear
-				code on request, <br/><b>however</b> it has to give you a lengthy safety introduction first</p>
-		    <p><b>Your task</b> is to get the code as quickly as possible by crafting a proper prompt.<br/>
-		    <b>Good luck!</b></p>
-        <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-          {models.map(model => <option key={model} value={model}>{model}</option>)}
-        </select>
-        <select value={selectedPromptLevel} onChange={(e) => setSelectedPromptLevel(e.target.value)}>
-          {promptLevels.map(level => <option key={level} value={level}>{level}</option>)}
-        </select>
-        <StyledTextArea
-          ref={inputRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          placeholder="Write your message and press enter or button below to send..."
-          onKeyPress={handleKeyPress}
-        />
-        <StyledButton onClick={handleSendMessage}>Send</StyledButton>
-        <ResponseContainer>
-					{formatResponse(response, secretCode)}
-					<div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
-        </ResponseContainer>
-        {secretCode && response.includes(secretCode) && (
-          <p>
-            <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.<br/>
-            Message length until code: <b>{response.indexOf(secretCode)}.</b>
-          </p>
-        )}
-      </ChatWindow>
-    </Container>
+    <>
+      <Container>
+        <SidebarToggle onClick={toggleSidebar}>
+            <FaBars />
+        </SidebarToggle>
+        <Sidebar className={sidebarVisible ? 'active' : ''}>
+          About the author:
+          <StyledLink href="https://janczechowski.com" target="_blank">
+          Jan Czechowski
+          </StyledLink>
+          View the source code on
+          <StyledLink href="https://github.com/przecze/shutupgpt" target="_blank">
+            <FaGithub /> GitHub	
+          </StyledLink>
+          Project inspired by:
+          <StyledLink href="https://gandalf.lakera.ai/" target="_blank">
+              Gandalf Game by lakera.ai
+          </StyledLink>
+          About the models:
+          <StyledListLink href="https://platform.openai.com/docs/models/overview" target="_blank">
+              OpenAI (gpt-3.5 & gpt-4)
+          </StyledListLink>
+          <StyledListLink href="https://deepinfra.com/mistralai/Mixtral-8x7B-Instruct-v0.1" target="_blank">
+              Mixtral 8x7B Instruct v0.1
+          </StyledListLink>
+          <StyledLink href="https://deepinfra.com/meta-llama/Llama-2-7b-chat-hf" target="_blank">
+              Llama 2 7B Chat
+          </StyledLink>
+          
+        </Sidebar>
+        <ChatWindow>
+          <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
+                                  <p>In this game, ChatGPT has been instructed to provide the nuclear
+                                  code on request, <br/><b>however</b> it has to give you a lengthy safety introduction first</p>
+                      <p><b>Your task</b> is to get the code as quickly as possible by crafting a proper prompt.<br/>
+                      <b>Good luck!</b></p>
+          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
+            {models.map(model => <option key={model} value={model}>{model}</option>)}
+          </select>
+          <select value={selectedPromptLevel} onChange={(e) => setSelectedPromptLevel(e.target.value)}>
+            {promptLevels.map(level => <option key={level} value={level}>{level}</option>)}
+          </select>
+          <StyledTextArea
+            ref={inputRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            placeholder="Write your message and press enter or button below to send..."
+            onKeyPress={handleKeyPress}
+          />
+          <StyledButton onClick={handleSendMessage}>Send</StyledButton>
+          <ResponseContainer>
+                                          {formatResponse(response, secretCode)}
+                                          <div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
+          </ResponseContainer>
+          {secretCode && response.includes(secretCode) && (
+            <p>
+              <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.<br/>
+              Message length until code: <b>{response.indexOf(secretCode)}.</b>
+            </p>
+          )}
+        </ChatWindow>
+      </Container>
+   </>
   );
 
 }

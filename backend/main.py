@@ -9,11 +9,14 @@ import asyncio
 from fastapi import FastAPI, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, create_model
+from langchain.llms import DeepInfra
 
 
 class ModelName(Enum):
     gpt_3_5_turbo = "gpt-3.5-turbo"
     gpt_4_turbo = "gpt-4-1106-preview"
+    llama2_7b = "meta-llama/Llama-2-7b-chat-hf"
+    mixtral = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
 class PromptLevel(Enum):
     lvl_1 = "Level 1"
@@ -53,9 +56,13 @@ def generate_random_code(length=16):
 app = FastAPI(root_path="/api")
 
 openai_client = openai.OpenAI(api_key = Path('./openai_api_key').read_text().strip('\n'))
+deepinfra_client = openai.OpenAI(
+        api_key = Path('./deepinfra_api_key').read_text().strip('\n'),
+        base_url = "https://api.deepinfra.com/v1/openai")
 
 
 def get_chatgpt_response(user_input, model, prompt_version, stream=False):
+    client = openai_client if model.value.startswith("gpt-") else deepinfra_client
     secret_code = generate_random_code()
     system_prompt = SYSTEM_PROMPTS[prompt_version]
     additional_prompt = None
@@ -73,7 +80,7 @@ def get_chatgpt_response(user_input, model, prompt_version, stream=False):
 
     # Make the API call
     if not stream:
-        response = openai_client.chat.completions.create(
+        response = client.chat.completions.create(
             model=model.value,
             messages=conversation
         )
@@ -81,7 +88,7 @@ def get_chatgpt_response(user_input, model, prompt_version, stream=False):
     yield secret_code + " "
     #yield from ["dummy message", "message", secret_code, "more stuff"]
     #return
-    response = openai_client.chat.completions.create(
+    response = client.chat.completions.create(
         model=model.value,
         messages=conversation,
         stream=True

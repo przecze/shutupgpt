@@ -1,3 +1,4 @@
 backend/__pycache__/*
 backend/openai_api_key
+backend/deepinfra_api_key
 *.*.swp

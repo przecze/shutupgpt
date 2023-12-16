@@ -30,7 +30,7 @@ const StyledTextArea = styled.textarea`
   padding: 10px;
   font-size: 16px;
   font-family: 'Cormorant Garamond', serif;
-  width: 100%;
+  width: 95%;
   height: 100px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: border-color 0.3s;

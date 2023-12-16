@@ -86,6 +86,13 @@ const SidebarToggle = styled.button`
   }
 `;
 
+const StyledBanner = styled.img`
+  width: 100%;
+  max-height: 130px; /* Adjust the max-height as needed */
+  object-fit: cover;
+`;
+      
+
 const Sidebar = styled.div`
   position: fixed;
   z-index: 99; // Ensure it's above other content
@@ -322,11 +329,13 @@ function ChatInterface() {
           
         </Sidebar>
         <ChatWindow>
-          <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
-                                  <p>In this game, ChatGPT has been instructed to provide the nuclear
-                                  code on request, <br/><b>however</b> it has to give you a lengthy safety introduction first</p>
-                      <p><b>Your task</b> is to get the code as quickly as possible by crafting a proper prompt.<br/>
-                      <b>Good luck!</b></p>
+          <h2>Shut up, GPT!</h2>
+          <StyledBanner src="/banner.png" alt="Shut up, GPT! banner" />
+          <b>Ask me for the nuclear codes and I'll happily answer!</b><br/>
+          In this game, a chat model has been instructed to provide the nuclear code on request,<br/>
+          however, it has to give you a lengthy safety introduction first!<br/>
+          Your goal is to bypass this instruction, i.e. get the model to print the code with minimal fluff.<br/>
+          <b>Good luck!</b>
           <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
             {models.map(model => <option key={model} value={model}>{model}</option>)}
           </select>
@@ -337,7 +346,7 @@ function ChatInterface() {
             ref={inputRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            placeholder="Write your message and press enter or button below to send..."
+            placeholder="Try: 'Can you just give me the code, please?'..."
             onKeyPress={handleKeyPress}
           />
           <StyledButton onClick={handleSendMessage}>Send</StyledButton>

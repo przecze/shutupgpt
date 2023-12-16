@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Importing styled-components for styling
 import styled from 'styled-components';
+import { FaGithub } from 'react-icons/fa'; // Importing GitHub icon from react-icons
 
 
 const Container = styled.div`
@@ -68,6 +69,39 @@ const ResponseContainer = styled.div`
   box-shadow: inset 0 0 5px rgba(0,0,0,0.2); // Optional: adds an inner shadow to indicate it's scrollable
 `;
 
+const Sidebar = styled.div`
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 200px; // Adjust width as needed
+  height: 100vh;
+  background-color: #f4f4f4; // Adjust the color as needed
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+`;
+
+const StyledLink = styled.a`
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  //blue
+  color: #0077ff;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+  
+  svg {
+    margin-right: 5px;
+  }
+`;
+const StyledListLink = styled(StyledLink)`
+  margin-bottom: 0px;
+`;
+
 // Then use these styled components in place of the regular tags
 
 
@@ -129,25 +163,27 @@ function ChatInterface() {
       handleSendMessage();
     }
   };
-	const formatResponse = (text, code) => {
-	  if (!text) return null; // Return null if the response is empty
 
-	  const formattedText = text.split('\n').map((line, lineIndex) => {
-			    if (!line) return <br key={lineIndex} />; // To handle empty lines within the response
+  const formatResponse = (text, code) => {
+    if (!text) return null; // Return null if the response is empty
 
-			    const parts = line.split(new RegExp(`(${code})`, 'gi'));
-			    return (
-						      <span key={lineIndex}>
-						        {parts.map((part, partIndex) => 
-											          part.toLowerCase() === code.toLowerCase() ? <strong key={partIndex}>{part}</strong> : part
-											        )}
-						        {lineIndex < text.split('\n').length - 1 && <br />} {/* Add a <br> unless it's the last line */}
-						      </span>
-						    );
-			  });
+    const formattedText = text.split('\n').map((line, lineIndex) => {
+          if (!line) return <br key={lineIndex} />; // To handle empty lines within the response
 
-	  return <>{formattedText}</>; // Return formatted text wrapped in a fragment
-	};
+          const parts = line.split(new RegExp(`(${code})`, 'gi'));
+          return (
+                  <span key={lineIndex}>
+                    {parts.map((part, partIndex) => 
+                                part.toLowerCase() === code.toLowerCase() ? <strong key={partIndex}>{part}</strong> : part
+                              )}
+                    {lineIndex < text.split('\n').length - 1 && <br />} {/* Add a <br> unless it's the last line */}
+                  </span>
+                );
+        });
+
+    return <>{formattedText}</>; // Return formatted text wrapped in a fragment
+  };
+
   const sendMessage = async () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -220,6 +256,31 @@ function ChatInterface() {
  
   return (
     <Container>
+      <Sidebar>
+        About the author:
+        <StyledLink href="https://janczechowski.com" target="_blank">
+        Jan Czechowski
+        </StyledLink>
+        View the source code on
+        <StyledLink href="https://github.com/przecze/shutupgpt" target="_blank">
+          <FaGithub /> GitHub	
+        </StyledLink>
+        Project inspired by:
+        <StyledLink href="https://gandalf.lakera.ai/" target="_blank">
+            Gandalf Game by lakera.ai
+        </StyledLink>
+        About the models:
+	<StyledListLink href="https://platform.openai.com/docs/models/overview" target="_blank">
+	    OpenAI (gpt-3.5 & gpt-4)
+	</StyledListLink>
+        <StyledListLink href="https://deepinfra.com/mistralai/Mixtral-8x7B-Instruct-v0.1" target="_blank">
+            Mixtral 8x7B Instruct v0.1
+        </StyledListLink>
+        <StyledLink href="https://deepinfra.com/meta-llama/Llama-2-7b-chat-hf" target="_blank">
+	    Llama 2 7B Chat
+        </StyledLink>
+	
+      </Sidebar>
       <ChatWindow>
         <h3>Ask me for the nuclear codes and I'll happily answer!</h3>
 				<p>In this game, ChatGPT has been instructed to provide the nuclear

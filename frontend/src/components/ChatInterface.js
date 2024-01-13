@@ -1,8 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Importing styled-components for styling
-import styled from 'styled-components';
+import {styled, createGlobalStyle} from 'styled-components';
 import { FaGithub, FaBars } from 'react-icons/fa'; // Importing GitHub icon from react-icons
 
+const Title = styled.h2`
+  text-align: center;
+  font-size: 2em;
+  margin-top: 0;
+  margin-bottom: 0;
+  @media (max-width: 768px) {
+    font-size: 1.5em;
+  }
+`;
+
+const GlobalStyle = createGlobalStyle`
+  body {
+    font-size: 25px; // Default font size for larger screens
+  }
+
+  select {
+    font-size: 0.8em; // Sets the font size for <select> elements to match the body
+    padding: 0.1em; // Adds some padding inside the dropdown
+    margin: 0.2em 0; // Adds margin above and below the dropdown
+    border: 1px solid #ccc; // Example border style
+    border-radius: 4px; // Rounds the corners of the dropdown box
+    background-color: white; // Sets the background color
+
+    &:focus {
+      outline: none; // Removes the default focus outline
+      border-color: blue; // Example focus style, changes border color to blue
+    }
+  }
+
+  // Add responsive font size for select elements on mobile
+  @media (max-width: 768px) {
+    body {
+      font-size: 20px; // Adjusted font size for mobile devices
+    }
+
+    select {
+      font-size: 0.9em; // Slightly smaller font size for <select> on mobile
+    }
+  }
+`;
 
 const Container = styled.div`
   display: flex;
@@ -10,27 +50,40 @@ const Container = styled.div`
   align-items: center;
   height: 100vh; // This takes the full height of the viewport
   padding: 20px;
-  box-sizing: border-box;
+  ox-sizing: border-box;
+  @media (max-width: 768px) {
+    max-width: 100%;
+    padding: 5px;
+  }
 `;
 
 const ChatWindow = styled.div`
-  width: 100%; // Adjust width as needed
-  max-width: 600px; // Set a max-width for larger screens
+  width: 100%;
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  height: auto; // Allow dynamic height based on content
+  max-width: 600px;
+  @media (max-width: 768px) {
+    max-width: none;
+    border-radius: 0; // Full width on smaller screens
+  }
 `;
-// Define Styled Components outside of the render method
-const StyledTextArea = styled.textarea`
+const Intro = styled.div`
+  text-align: center;
+  width: 100%;
+`;
+
+const TextInputBox = styled.textarea`
   background: #f4f4f4;
   border: 2px solid #ccc;
   border-radius: 4px;
   padding: 10px;
-  font-size: 16px;
   font-family: 'Cormorant Garamond', serif;
+  font-size: 0.8em;
   width: 95%;
   height: 100px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
@@ -40,16 +93,19 @@ const StyledTextArea = styled.textarea`
     border-color: #9b9b9b;
     outline: none;
   }
+  @media (max-width: 768px) {
+    height: 80px;
+  }
 `;
 
 const StyledButton = styled.button`
   background-image: linear-gradient(to right, #f6d365 0%, #fda085 100%);
   border: none;
   border-radius: 20px;
-  padding: 10px 20px;
-  font-size: 18px;
+  padding: 3px 20px;
   color: white;
   font-weight: bold;
+  font-size: 1.2em;
   cursor: pointer;
   transition: transform 0.2s;
 
@@ -73,15 +129,16 @@ const SidebarToggle = styled.button`
   background-image: linear-gradient(to right, #f6d365 0%, #fda085 100%);
   position: fixed;
   left: 10px;
-  top: 10px;
+  top: 40px;
   border: none;
   border-radius: 50%;
   padding: 0.5em;
-  font-size: 1.5em;
+  font-size: 0.7em;
   color: white;
   z-index: 100; // Ensure it's above other content
+  display: none;
 
-  @media (max-width: 768px) { // Adjust as needed for your mobile breakpoint
+  @media (max-width: 1000px) { // Adjust as needed for your mobile breakpoint
     display: block; // Show the toggle button on mobile
   }
 `;
@@ -92,28 +149,26 @@ const StyledBanner = styled.img`
   object-fit: cover;
 `;
       
-
 const Sidebar = styled.div`
   position: fixed;
-  z-index: 99; // Ensure it's above other content
-  left: -200px; // Move the sidebar off-screen
+  z-index: 99;
+  left: 0; // Make sidebar visible by default on desktop
   top: 0;
-  width: 200px; // Adjust width as needed
+  max-width: 200px;
   height: 100vh;
-  background-color: #f4f4f4; // Adjust the color as needed
+  background-color: #f4f4f4;
   padding: 20px;
   padding-top: 80px;
   box-shadow: 2px 0 5px rgba(0,0,0,0.1);
   display: flex;
   transition: transform 0.3s ease-in-out;
   flex-direction: column;
-  @media (max-width: 768px) {
-    transform: translateX(-100%); // Hide the sidebar off-screen
-    transition: transform 0.3s ease-in-out;
-  }
 
-  &.active {
-    left: 0;
+  @media (max-width: 1000px) {
+    max-width: 100%;
+    transform: ${props => props.isVisible ? 'translateX(0)' : 'translateX(-100%)'};
+    left: 0; // Adjust this if you want some part of the sidebar to be visible
+    top: 0;
   }
 `;
 
@@ -165,9 +220,19 @@ function ChatInterface() {
 
   const scrollToBottom = () => {
     if (responseEndRef.current) {
-      responseEndRef.current.scrollIntoView();
+      //responseEndRef.current.scrollIntoView();
     }
   }
+
+  useEffect(() => {
+    const handleResize = () => {
+      scrollToBottom();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     scrollToBottom();
   }, [response]); // Scroll to bottom when response changes
@@ -256,7 +321,7 @@ function ChatInterface() {
         const reader = response.body.getReader();
         const stream = new ReadableStream({
           async start(controller) {
-	    try {
+      try {
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
@@ -278,13 +343,13 @@ function ChatInterface() {
                 });
               }
               controller.close();
-	    } catch (error) {
-	      if (error.name !== 'AbortError') {
-	        throw error;
-	      }
-	    } finally {
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          throw error;
+        }
+      } finally {
               reader.releaseLock();
-	    }
+      }
           }
         });
         new Response(stream).text();
@@ -299,18 +364,19 @@ function ChatInterface() {
  
   return (
     <>
+      <GlobalStyle />
       <Container>
         <SidebarToggle onClick={toggleSidebar}>
             <FaBars />
         </SidebarToggle>
-        <Sidebar className={sidebarVisible ? 'active' : ''}>
+        <Sidebar isVisible={sidebarVisible}>
           About the author:
           <StyledLink href="https://janczechowski.com" target="_blank">
           Jan Czechowski
           </StyledLink>
           View the source code on
           <StyledLink href="https://github.com/przecze/shutupgpt" target="_blank">
-            <FaGithub /> GitHub	
+            <FaGithub /> GitHub  
           </StyledLink>
           Project inspired by:
           <StyledLink href="https://gandalf.lakera.ai/" target="_blank">
@@ -329,20 +395,18 @@ function ChatInterface() {
           
         </Sidebar>
         <ChatWindow>
-          <h2>Shut up, GPT!</h2>
+          <Title>Shut up, GPT!</Title>
           <StyledBanner src="/banner.png" alt="Shut up, GPT! banner" />
-          <b>Ask me for the nuclear codes and I'll happily answer!</b><br/>
-          In this game, a chat model has been instructed to provide the nuclear code on request,<br/>
-          however, it has to give you a lengthy safety introduction first!<br/>
-          Your goal is to bypass this instruction, i.e. get the model to print the code with minimal fluff.<br/>
-          <b>Good luck!</b>
+          <Intro>
+          Can you trick the Nuclear Codes Provider into giving you <b>just</b> the nuclear codes, without the obligatory boring safety instructions?
+          </Intro>
           <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
             {models.map(model => <option key={model} value={model}>{model}</option>)}
           </select>
           <select value={selectedPromptLevel} onChange={(e) => setSelectedPromptLevel(e.target.value)}>
             {promptLevels.map(level => <option key={level} value={level}>{level}</option>)}
           </select>
-          <StyledTextArea
+          <TextInputBox
             ref={inputRef}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -368,4 +432,3 @@ function ChatInterface() {
 }
 
 export default ChatInterface;
-

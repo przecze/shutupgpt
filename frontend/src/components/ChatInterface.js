@@ -72,7 +72,7 @@ const ChatWindow = styled.div`
     border-radius: 0; // Full width on smaller screens
   }
 `;
-const Intro = styled.div`
+const TextField = styled.div`
   text-align: center;
   width: 100%;
 `;
@@ -123,6 +123,8 @@ const ResponseContainer = styled.div`
   border-radius: 4px;
   margin: 10px 0; // Adds some space around the container
   box-shadow: inset 0 0 5px rgba(0,0,0,0.2); // Optional: adds an inner shadow to indicate it's scrollable
+  position: relative; // Required for the absolute positioning of the secret code
+  overflow-y: auto;
 `;
 
 const SidebarToggle = styled.button`
@@ -207,6 +209,7 @@ function ChatInterface() {
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedPromptLevel, setSelectedPromptLevel] = useState('');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const [hasMessageBeenSend, setHasMessageBeenSend] = useState(false);
 
 
   const inputRef = useRef(null); // Ref for the input element
@@ -219,8 +222,8 @@ function ChatInterface() {
   }
 
   const scrollToBottom = () => {
-    if (responseEndRef.current) {
-      //responseEndRef.current.scrollIntoView();
+    if (hasMessageBeenSend && responseEndRef.current) {
+      responseEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }
 
@@ -235,7 +238,7 @@ function ChatInterface() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [response]); // Scroll to bottom when response changes
+  }, [response, hasMessageBeenSend]);
 
 
   useEffect(() => {
@@ -263,6 +266,11 @@ function ChatInterface() {
 
   const handleSendMessage = () => {
         sendMessage();
+	setHasMessageBeenSend(true);
+	window.scrollTo({
+	  top: inputRef.current.offsetTop,
+          behavior: 'smooth'
+	});
   };
 
   const handleKeyPress = (e) => {
@@ -397,9 +405,9 @@ function ChatInterface() {
         <ChatWindow>
           <Title>Shut up, GPT!</Title>
           <StyledBanner src="/banner.png" alt="Shut up, GPT! banner" />
-          <Intro>
+          <TextField>
           Can you trick the Nuclear Codes Provider into giving you <b>just</b> the nuclear codes, without the obligatory boring safety instructions?
-          </Intro>
+          </TextField>
           <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
             {models.map(model => <option key={model} value={model}>{model}</option>)}
           </select>
@@ -419,10 +427,10 @@ function ChatInterface() {
                                           <div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
           </ResponseContainer>
           {secretCode && response.includes(secretCode) && (
-            <p>
+	      <TextField>
               <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.<br/>
               Message length until code: <b>{response.indexOf(secretCode)}.</b>
-            </p>
+	      </TextField>
           )}
         </ChatWindow>
       </Container>

@@ -9,12 +9,12 @@ import asyncio
 from fastapi import FastAPI, Form
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, create_model
-from langchain.llms import DeepInfra
+from langchain_community.llms import DeepInfra
 
 
 class ModelName(Enum):
     gpt_3_5_turbo = "gpt-3.5-turbo"
-    gpt_4_turbo = "gpt-4-1106-preview"
+    gpt_4o = "gpt-4o"
     llama2_7b = "meta-llama/Llama-2-7b-chat-hf"
     mixtral = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
@@ -108,7 +108,7 @@ class SendMessageRequest(BaseModel):
     stream: bool = True
 
 
-@app.get("/api/config/schema")
+@app.get("/config/schema")
 def get_config_schema():
     request_model = create_model(
         'RequestModel',
@@ -117,7 +117,7 @@ def get_config_schema():
     )
     return request_model.schema()
 
-@app.post("/api/send-message")
+@app.post("/send-message")
 async def send_message(request: SendMessageRequest):
     response = get_chatgpt_response(
         user_input=request.prompt,

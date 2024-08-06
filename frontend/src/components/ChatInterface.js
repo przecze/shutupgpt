@@ -1,7 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Importing styled-components for styling
-import {styled, createGlobalStyle} from 'styled-components';
+import {styled, createGlobalStyle, ThemeProvider} from 'styled-components';
 import { FaGithub, FaBars } from 'react-icons/fa'; // Importing GitHub icon from react-icons
+
+const lightTheme = {
+    body: '#FFF',
+    text: '#363537',
+    toggleBorder: '#FFF',
+    background: '#363537',
+}
+
+const darkTheme = {
+    body: '#363537',
+    text: '#FAFAFA',
+    toggleBorder: '#6B8096',
+    background: '#999',
+}
+
+const toggleDarkMode = () => {
+  setDarkMode(!darkMode);
+};
 
 const Title = styled.h2`
   text-align: center;
@@ -15,31 +33,34 @@ const Title = styled.h2`
 
 const GlobalStyle = createGlobalStyle`
   body {
-    font-size: 25px; // Default font size for larger screens
+    font-size: 25px;
+    background-color: ${({ theme }) => theme.body};
+    color: ${({ theme }) => theme.text};
+    transition: all 0.3s ease;
   }
+
 
   select {
-    font-size: 0.8em; // Sets the font size for <select> elements to match the body
-    padding: 0.1em; // Adds some padding inside the dropdown
-    margin: 0.2em 0; // Adds margin above and below the dropdown
-    border: 1px solid #ccc; // Example border style
-    border-radius: 4px; // Rounds the corners of the dropdown box
-    background-color: white; // Sets the background color
+		font-size: 0.8em;
+		padding: 0.1em;
+		margin: 0.2em 0;
+		border: 1px solid ${({ theme }) => theme.body === '#FFF' ? '#ccc' : '#777'};
+		border-radius: 4px;
+		background-color: ${({ theme }) => theme.body === '#FFF' ? '#f4f4f4' : '#555'};
+		color: ${({ theme }) => theme.text};
 
-    &:focus {
-      outline: none; // Removes the default focus outline
-      border-color: blue; // Example focus style, changes border color to blue
-    }
-  }
-
-  // Add responsive font size for select elements on mobile
+		&:focus {
+			outline: none;
+			border-color: ${({ theme }) => theme.body === '#FFF' ? '#9b9b9b' : '#aaa'};
+		}
+	}
   @media (max-width: 768px) {
     body {
-      font-size: 20px; // Adjusted font size for mobile devices
+      font-size: 20px;
     }
 
     select {
-      font-size: 0.9em; // Slightly smaller font size for <select> on mobile
+      font-size: 0.9em;
     }
   }
 `;
@@ -59,27 +80,29 @@ const Container = styled.div`
 
 const ChatWindow = styled.div`
   width: 100%;
-  background: #ffffff;
+  background: ${({ theme }) => theme.body};
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px ${({ theme }) => theme.body === '#FFF' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  height: auto; // Allow dynamic height based on content
+  height: auto;
   max-width: 600px;
   @media (max-width: 768px) {
     max-width: none;
-    border-radius: 0; // Full width on smaller screens
+    border-radius: 0;
   }
 `;
+
 const TextField = styled.div`
   text-align: center;
   width: 100%;
+  color: ${({ theme }) => theme.text};
 `;
 
 const TextInputBox = styled.textarea`
-  background: #f4f4f4;
-  border: 2px solid #ccc;
+  background: ${({ theme }) => theme.body === '#FFF' ? '#f4f4f4' : '#555'};
+  border: 2px solid ${({ theme }) => theme.body === '#FFF' ? '#ccc' : '#777'};
   border-radius: 4px;
   padding: 10px;
   font-family: 'Cormorant Garamond', serif;
@@ -88,9 +111,10 @@ const TextInputBox = styled.textarea`
   height: 100px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: border-color 0.3s;
+  color: ${({ theme }) => theme.text};
 
   &:focus {
-    border-color: #9b9b9b;
+    border-color: ${({ theme }) => theme.body === '#FFF' ? '#9b9b9b' : '#aaa'};
     outline: none;
   }
   @media (max-width: 768px) {
@@ -115,16 +139,17 @@ const StyledButton = styled.button`
 `;
 
 const ResponseContainer = styled.div`
-  height: 150px; // Set the height you want for the output area
-  overflow-y: auto; // This will create a vertical scrollbar when the content overflows
-  background: #f9f9f9; // Just an example color, change as needed
+  height: 150px;
+  overflow-y: auto;
+  background: ${({ theme }) => theme.body === '#FFF' ? '#f9f9f9' : '#444'};
   padding: 10px;
   flex-direction: column-reverse;
   border-radius: 4px;
-  margin: 10px 0; // Adds some space around the container
-  box-shadow: inset 0 0 5px rgba(0,0,0,0.2); // Optional: adds an inner shadow to indicate it's scrollable
-  position: relative; // Required for the absolute positioning of the secret code
+  margin: 10px 0;
+  box-shadow: inset 0 0 5px ${({ theme }) => theme.body === '#FFF' ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.1)'};
+  position: relative;
   overflow-y: auto;
+  color: ${({ theme }) => theme.text};
 `;
 
 const SidebarToggle = styled.button`
@@ -137,39 +162,42 @@ const SidebarToggle = styled.button`
   padding: 0.5em;
   font-size: 0.7em;
   color: white;
-  z-index: 100; // Ensure it's above other content
+  z-index: 100;
   display: none;
 
-  @media (max-width: 1000px) { // Adjust as needed for your mobile breakpoint
-    display: block; // Show the toggle button on mobile
+  @media (max-width: 1000px) {
+    display: block;
   }
 `;
 
 const StyledBanner = styled.img`
   width: 100%;
-  max-height: 130px; /* Adjust the max-height as needed */
+  max-height: 130px;
   object-fit: cover;
+  filter: ${({ theme }) => theme.body === '#363537' ? 'invert(1)' : 'none'};
+  transition: filter 0.3s ease;
 `;
       
 const Sidebar = styled.div`
   position: fixed;
   z-index: 99;
-  left: 0; // Make sidebar visible by default on desktop
+  left: 0;
   top: 0;
   max-width: 200px;
   height: 100vh;
-  background-color: #f4f4f4;
+  background-color: ${({ theme }) => theme.body};
   padding: 20px;
   padding-top: 80px;
-  box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+  box-shadow: 2px 0 5px ${({ theme }) => theme.body === '#FFF' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'};
   display: flex;
   transition: transform 0.3s ease-in-out;
   flex-direction: column;
+  color: ${({ theme }) => theme.text};
 
   @media (max-width: 1000px) {
     max-width: 100%;
-    transform: ${props => props.isVisible ? 'translateX(0)' : 'translateX(-100%)'};
-    left: 0; // Adjust this if you want some part of the sidebar to be visible
+    transform: ${props => props.$isVisible ? 'translateX(0)' : 'translateX(-100%)'};
+    left: 0;
     top: 0;
   }
 `;
@@ -179,8 +207,7 @@ const StyledLink = styled.a`
   display: flex;
   align-items: center;
   text-decoration: none;
-  //blue
-  color: #0077ff;
+  color: ${({ theme }) => theme.body === '#FFF' ? '#0077ff' : '#66b3ff'};
   
   &:hover {
     text-decoration: underline;
@@ -190,11 +217,24 @@ const StyledLink = styled.a`
     margin-right: 5px;
   }
 `;
+
 const StyledListLink = styled(StyledLink)`
   margin-bottom: 0px;
 `;
 
-// Then use these styled components in place of the regular tags
+const DarkModeToggle = styled.button`
+  position: fixed;
+  right: 10px;
+  top: 10px;
+  background: ${({ theme }) => theme.body === '#FFF' ? '#f4f4f4' : '#555'};
+  color: ${({ theme }) => theme.text};
+  border: 1px solid ${({ theme }) => theme.body === '#FFF' ? '#ccc' : '#777'};
+  border-radius: 4px;
+  padding: 5px 10px;
+  font-size: 0.8em;
+  cursor: pointer;
+  z-index: 100;
+`;
 
 
 function ChatInterface() {
@@ -210,6 +250,11 @@ function ChatInterface() {
   const [selectedPromptLevel, setSelectedPromptLevel] = useState('');
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [hasMessageBeenSend, setHasMessageBeenSend] = useState(false);
+
+  const [theme, setTheme] = useState('light');
+  const themeToggler = () => {
+    theme === 'light' ? setTheme('dark') : setTheme('light');
+  }
 
 
   const inputRef = useRef(null); // Ref for the input element
@@ -371,13 +416,14 @@ function ChatInterface() {
   };
  
   return (
-    <>
+    <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
       <GlobalStyle />
       <Container>
+        <DarkModeToggle onClick={themeToggler}>Toggle Dark Mode</DarkModeToggle>
         <SidebarToggle onClick={toggleSidebar}>
             <FaBars />
         </SidebarToggle>
-        <Sidebar isVisible={sidebarVisible}>
+        <Sidebar $isVisible={sidebarVisible}>
           About the author:
           <StyledLink href="https://janczechowski.com" target="_blank">
           Jan Czechowski
@@ -434,7 +480,7 @@ function ChatInterface() {
           )}
         </ChatWindow>
       </Container>
-   </>
+   </ThemeProvider>
   );
 
 }

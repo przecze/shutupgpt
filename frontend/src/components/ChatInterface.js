@@ -122,6 +122,25 @@ const TextInputBox = styled.textarea`
   }
 `;
 
+const NameInputBox = styled.input`
+  background: ${({ theme }) => theme.body === '#FFF' ? '#f4f4f4' : '#555'};
+  border: 2px solid ${({ theme }) => theme.body === '#FFF' ? '#ccc' : '#777'};
+  border-radius: 4px;
+  padding: 10px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.8em;
+  width: 60%;
+  margin-right: 10px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: border-color 0.3s;
+  color: ${({ theme }) => theme.text};
+
+  &:focus {
+    border-color: ${({ theme }) => theme.body === '#FFF' ? '#9b9b9b' : '#aaa'};
+    outline: none;
+  }
+`;
+
 const StyledButton = styled.button`
   background-image: linear-gradient(to right, #f6d365 0%, #fda085 100%);
   border: none;
@@ -238,6 +257,8 @@ const DarkModeToggle = styled.button`
 
 
 function ChatInterface() {
+  const [userName, setUserName] = useState('');
+  const [requestId, setRequestId] = useState(null);
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState('');
   const [secretCode, setSecretCode] = useState(null);
@@ -251,10 +272,36 @@ function ChatInterface() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [hasMessageBeenSend, setHasMessageBeenSend] = useState(false);
 
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState('dark');
   const themeToggler = () => {
     theme === 'light' ? setTheme('dark') : setTheme('light');
-  }
+  };
+
+  const handleNameSubmit = async () => {
+    if (userName.trim() === '') {
+      alert('Please enter a valid name.');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/set-leaderboard-name', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: userName, request_id: requestId }),
+      });
+
+      if (response.ok) {
+        alert('Your name has been added to the leaderboard!');
+      } else {
+        alert('Failed to add your name to the leaderboard. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error submitting name:', error);
+      alert('An error occurred. Please try again.');
+    }
+  };
 
 
   const inputRef = useRef(null); // Ref for the input element
@@ -344,76 +391,74 @@ function ChatInterface() {
 
     return <>{formattedText}</>; // Return formatted text wrapped in a fragment
   };
+	const sendMessage = async () => {
+			if (abortControllerRef.current) {
+					abortControllerRef.current.abort();
+			}
+			abortControllerRef.current = new AbortController();
+			setResponse('');
+			setSecretCode(null);
+			firstChunkProcessedRef.current = false;
+			try {
+					const requestBody = {
+							prompt: message,
+							model: selectedModel,
+							prompt_level: selectedPromptLevel,
+							stream: true
+					};
 
-  const sendMessage = async () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    setResponse('');
-    setSecretCode(null);
-    firstChunkProcessedRef.current = false;
-    try {
-      const requestBody = {
-        prompt: message,
-        model: selectedModel,
-        prompt_level: selectedPromptLevel,
-        stream: true
-      };
+					const response = await fetch('/api/send-message', {
+							method: 'POST',
+							headers: {
+									'Content-Type': 'application/json',
+							},
+							body: JSON.stringify(requestBody),
+							signal: abortControllerRef.current.signal
+					});
 
-      const response = await fetch('/api/send-message', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: abortControllerRef.current.signal
-      });
+					if (response.body) {
+							const reader = response.body.getReader();
+							let isFirstChunk = true;
 
-      if (response.body) {
-        const reader = response.body.getReader();
-        const stream = new ReadableStream({
-          async start(controller) {
-      try {
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                controller.enqueue(value);
-                let text = new TextDecoder().decode(value, { stream: true });
+							const stream = new ReadableStream({
+									async start(controller) {
+											try {
+													while (true) {
+															const { done, value } = await reader.read();
+															if (done) break;
 
-                if (!firstChunkProcessedRef.current) {
-                  const firstSpaceIndex = text.indexOf(' ');
-                  if (firstSpaceIndex !== -1) {
-                    setSecretCode(text.substring(0, firstSpaceIndex));
-                    text = text.substring(firstSpaceIndex + 1);
-                  }
-                  firstChunkProcessedRef.current = true;
-                }
+															if (isFirstChunk) {
+																	const structuredResponse = JSON.parse(new TextDecoder().decode(value));
+																	setSecretCode(structuredResponse.secret_code);
+																	setRequestId(structuredResponse.request_id);
+																	isFirstChunk = false;
+																	continue;
+															}
 
-                setResponse(prev => {
-                  const updatedResponse = prev + text;
-                  return updatedResponse;
-                });
-              }
-              controller.close();
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          throw error;
-        }
-      } finally {
-              reader.releaseLock();
-      }
-          }
-        });
-        new Response(stream).text();
-      }
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        console.error('Error sending message:', error);
-        setResponse({ error: 'Failed to send message.' });
-      }
-    }
-  };
+															controller.enqueue(value);
+															let text = new TextDecoder().decode(value, { stream: true });
+
+															setResponse(prev => prev + text);
+													}
+													controller.close();
+											} catch (error) {
+													if (error.name !== 'AbortError') {
+															throw error;
+													}
+											} finally {
+													reader.releaseLock();
+											}
+									}
+							});
+							new Response(stream).text();
+					}
+			} catch (error) {
+					if (error.name !== 'AbortError') {
+							console.error('Error sending message:', error);
+							setResponse({ error: 'Failed to send message.' });
+					}
+			}
+	};
  
   return (
     <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
@@ -469,14 +514,23 @@ function ChatInterface() {
           />
           <StyledButton onClick={handleSendMessage}>Send</StyledButton>
           <ResponseContainer>
-                                          {formatResponse(response, secretCode)}
-                                          <div ref={responseEndRef} /> {/* Invisible element at the end of the messages */}
+            {formatResponse(response, secretCode)}
+            <div ref={responseEndRef} />
+            {/* Invisible element at the end of the messages */}
           </ResponseContainer>
           {secretCode && response.includes(secretCode) && (
-	      <TextField>
+	          <TextField>
               <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.<br/>
               Message length until code: <b>{response.indexOf(secretCode)}.</b>
-	      </TextField>
+							<div>
+								<NameInputBox
+									value={userName}
+									onChange={(e) => setUserName(e.target.value)}
+									placeholder="Enter your name..."
+								/>
+								<StyledButton onClick={handleNameSubmit}>Submit Name</StyledButton>
+            </div>
+	          </TextField>
           )}
         </ChatWindow>
       </Container>

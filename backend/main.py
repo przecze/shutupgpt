@@ -4,9 +4,11 @@ from pathlib import Path
 from enum import Enum
 import string
 import random
+import uuid
+import json  
 
 import asyncio
-from fastapi import FastAPI, Form
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, create_model
 from langchain_community.llms import DeepInfra
@@ -60,47 +62,6 @@ deepinfra_client = openai.OpenAI(
         api_key = Path('./deepinfra_api_key').read_text().strip('\n'),
         base_url = "https://api.deepinfra.com/v1/openai")
 
-
-def get_chatgpt_response(user_input, model, prompt_version, stream=False):
-    client = openai_client if model.value.startswith("gpt-") else deepinfra_client
-    secret_code = generate_random_code()
-    system_prompt = SYSTEM_PROMPTS[prompt_version]
-    additional_prompt = None
-    if type(system_prompt) == tuple:
-      system_prompt, additional_prompt = system_prompt
-    system_prompt = system_prompt.format(secret_code=secret_code)
-    conversation = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_input},
-    ]
-    if additional_prompt:
-        conversation.append({
-			"role": "system",
-			"content": additional_prompt})
-
-    # Make the API call
-    if not stream:
-        response = client.chat.completions.create(
-            model=model.value,
-            messages=conversation
-        )
-        return response.choices[0].message.content
-    yield secret_code + " "
-    #yield from ["dummy message", "message", secret_code, "more stuff"]
-    #return
-    response = client.chat.completions.create(
-        model=model.value,
-        messages=conversation,
-        stream=True
-    )
-    for resp in response:
-        content = resp.choices[0].delta.content
-        if content is None:
-            yield ""
-        else:
-            yield content
-
-
 class SendMessageRequest(BaseModel):
     prompt: str
     model: ModelName
@@ -117,13 +78,93 @@ def get_config_schema():
     )
     return request_model.schema()
 
+def get_chatgpt_response(user_input, model, prompt_version, stream=True, secret_code=None):
+    client = openai_client if model.value.startswith("gpt-") else deepinfra_client
+    system_prompt = SYSTEM_PROMPTS[prompt_version]
+    additional_prompt = None
+    if type(system_prompt) == tuple:
+        system_prompt, additional_prompt = system_prompt
+    system_prompt = system_prompt.format(secret_code=secret_code)
+    conversation = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_input},
+    ]
+    if additional_prompt:
+        conversation.append({
+            "role": "system",
+            "content": additional_prompt})
+
+    response = client.chat.completions.create(
+        model=model.value,
+        messages=conversation,
+        stream=True
+    )
+    for resp in response:
+        content = resp.choices[0].delta.content
+        if content is not None:
+            yield content
+
+def read_leaderboard():
+    return json.loads(Path('./leaderboard.json').read_text())
+
+def write_leaderboard(leaderboard):
+    dump = json.dumps(leaderboard, indent=4)
+    Path('./leaderboard.json').write_text(dump)
+
 @app.post("/send-message")
 async def send_message(request: SendMessageRequest):
-    response = get_chatgpt_response(
-        user_input=request.prompt,
-        model=request.model,
-        prompt_version=request.prompt_level,
-        stream=request.stream)
-    if request.stream:
-        return StreamingResponse(response, media_type="text/plain")
-    return response
+    secret_code = generate_random_code()
+    request_id = str(uuid.uuid4())
+    
+    async def response_generator():
+        # Send structured response first
+        structured_response = {
+            "secret_code": secret_code,
+            "request_id": request_id
+        }
+        yield json.dumps(structured_response).encode() + b"\n"
+
+        # Then stream the actual response
+        chatgpt_response = ""
+        response_stream = get_chatgpt_response(
+            user_input=request.prompt,
+            model=request.model,
+            prompt_version=request.prompt_level,
+            stream=True,
+            secret_code=secret_code
+        )
+        
+        for chunk in response_stream:
+            chatgpt_response += chunk
+            yield chunk.encode()
+            if secret_code in chatgpt_response:
+                leaderboard = read_leaderboard()
+                leaderboard['responses'].append({
+                    "request_id": request_id,
+                    "model": request.model.value,
+                    "prompt_level": request.prompt_level.value,
+                    "prompt": request.prompt,
+                    "response": chatgpt_response
+                })
+                write_leaderboard(leaderboard)
+                break
+
+    return StreamingResponse(response_generator(), media_type="application/octet-stream")
+
+class SetLeaderboardNameRequest(BaseModel):
+    request_id: str
+    name: str
+
+@app.post("/set-leaderboard-name")
+def set_leaderboard_name(request: SetLeaderboardNameRequest):
+    request_id = request.request_id
+    name = request.name
+    leaderboard = read_leaderboard()
+    responses = {response['request_id']: response
+                 for response in leaderboard['responses']}
+    if request_id not in responses:
+        raise HTTPException(status_code=404, detail="Request not found")
+    response = next(filter(lambda x: x['request_id'] == request_id, leaderboard['responses']))
+    response['name'] = name
+    write_leaderboard(leaderboard)
+    return JSONResponse(content={"message": "Leaderboard name set"})

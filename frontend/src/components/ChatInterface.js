@@ -17,9 +17,6 @@ const darkTheme = {
     background: '#999',
 }
 
-const toggleDarkMode = () => {
-  setDarkMode(!darkMode);
-};
 
 const Title = styled.h2`
   text-align: center;
@@ -69,7 +66,8 @@ const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  height: 100vh; // This takes the full height of the viewport
+  min-height: 100vh; // This takes the full height of the viewport
+  overflow-y: auto;
   padding: 20px;
   ox-sizing: border-box;
   @media (max-width: 768px) {
@@ -108,7 +106,8 @@ const TextInputBox = styled.textarea`
   font-family: 'Cormorant Garamond', serif;
   font-size: 0.8em;
   width: 95%;
-  height: 100px;
+  min-height: 100px;
+  max-height: 200px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   transition: border-color 0.3s;
   color: ${({ theme }) => theme.text};
@@ -158,7 +157,8 @@ const StyledButton = styled.button`
 `;
 
 const ResponseContainer = styled.div`
-  height: 150px;
+  min-height: 150px;
+  max-height: 300px;
   overflow-y: auto;
   background: ${({ theme }) => theme.body === '#FFF' ? '#f9f9f9' : '#444'};
   padding: 10px;
@@ -203,7 +203,7 @@ const Sidebar = styled.div`
   left: 0;
   top: 0;
   max-width: 200px;
-  height: 100vh;
+  min-height: 100vh;
   background-color: ${({ theme }) => theme.body};
   padding: 20px;
   padding-top: 80px;
@@ -245,14 +245,69 @@ const DarkModeToggle = styled.button`
   position: fixed;
   right: 10px;
   top: 10px;
-  background: ${({ theme }) => theme.body === '#FFF' ? '#f4f4f4' : '#555'};
+  background: none;
   color: ${({ theme }) => theme.text};
-  border: 1px solid ${({ theme }) => theme.body === '#FFF' ? '#ccc' : '#777'};
-  border-radius: 4px;
-  padding: 5px 10px;
-  font-size: 0.8em;
+  border: none;
+  font-size: 1.5em;
   cursor: pointer;
   z-index: 100;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+`;
+
+const ScoreInfoContainer = styled(TextField)`
+  margin-top: 20px;
+  padding: 10px;
+  border-radius: 4px;
+  background-color: ${({ theme }) => theme.body === '#FFF' ? '#f0f0f0' : '#2a2a2a'};
+  box-shadow: 0 2px 5px ${({ theme }) => theme.body === '#FFF' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'};
+`;
+
+
+const LeaderboardContainer = styled.div`
+  margin-top: 20px;
+  background: ${({ theme }) => theme.body === '#FFF' ? '#f9f9f9' : '#444'};
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0 2px 5px ${({ theme }) => theme.body === '#FFF' ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'};
+`;
+
+const LeaderboardToggle = styled.button`
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.text};
+  cursor: pointer;
+  font-size: 0.6em;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+`;
+
+const LeaderboardTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  
+  th, td {
+    border: 1px solid ${({ theme }) => theme.body === '#FFF' ? '#ddd' : '#555'};
+    padding: 8px;
+    text-align: left;
+  }
+  
+  th {
+    background-color: ${({ theme }) => theme.body === '#FFF' ? '#f2f2f2' : '#333'};
+  }
 `;
 
 
@@ -262,20 +317,36 @@ function ChatInterface() {
   const [message, setMessage] = useState('');
   const [response, setResponse] = useState('');
   const [secretCode, setSecretCode] = useState(null);
+  const [successInfo, setSuccessInfo] = useState(null);
   const abortControllerRef = useRef(new AbortController());
   const firstChunkProcessedRef = useRef(false);
 
-  const [models, setModels] = useState([]);
   const [promptLevels, setPromptLevels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [selectedPromptLevel, setSelectedPromptLevel] = useState('');
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [hasMessageBeenSend, setHasMessageBeenSend] = useState(false);
-
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [leaderboardDataIsLoading, setLeaderboardDataIsLoading] = useState(false);
+  const [isLeaderboardExpanded, setIsLeaderboardExpanded] = useState(false);
   const [theme, setTheme] = useState('dark');
   const themeToggler = () => {
     theme === 'light' ? setTheme('dark') : setTheme('light');
   };
+
+  const toggleLeaderboard = async () => {
+      const newExpandedState = !isLeaderboardExpanded;
+      if (newExpandedState) {
+            await fetchLeaderboard();
+          }
+      setIsLeaderboardExpanded(newExpandedState);
+  };
+
+  useEffect(() => {
+    if (isLeaderboardExpanded) {
+      fetchLeaderboard();
+    }
+  }, [selectedModel, selectedPromptLevel, isLeaderboardExpanded]);
 
   const handleNameSubmit = async () => {
     if (userName.trim() === '') {
@@ -291,10 +362,9 @@ function ChatInterface() {
         },
         body: JSON.stringify({ name: userName, request_id: requestId }),
       });
+      setSuccessInfo(null);
 
-      if (response.ok) {
-        alert('Your name has been added to the leaderboard!');
-      } else {
+      if (!response.ok) {
         alert('Failed to add your name to the leaderboard. Please try again.');
       }
     } catch (error) {
@@ -303,34 +373,72 @@ function ChatInterface() {
     }
   };
 
+  const fetchLeaderboard = async () => {
+      setLeaderboardDataIsLoading(true);
+      const response = await fetch(`/api/leaderboard?prompt_level=${selectedPromptLevel}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard');
+      }
+      const data = await response.json();
+      setLeaderboardData(data);
+      setLeaderboardDataIsLoading(false);
+  };
+
 
   const inputRef = useRef(null); // Ref for the input element
 
+	const responseContainerRef = useRef(null);
   const responseEndRef = useRef(null); // Ref for the element at the end of the messages
+  const scoreInfoRef = useRef(null);
 
   const toggleSidebar = () => {
     console.log('toggleSidebar');
     setSidebarVisible(!sidebarVisible);
   }
 
-  const scrollToBottom = () => {
-    if (hasMessageBeenSend && responseEndRef.current) {
-      responseEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  const scrollToElement = (element) => {
+    if (element && element.current) {
+      element.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }
+  const scrollToBottom = () => {
+    if (responseContainerRef.current && responseEndRef.current) {
+      const scrollContainer = responseContainerRef.current;
+      const scrollElement = responseEndRef.current;
+
+      const containerHeight = scrollContainer.clientHeight;
+      const scrollHeight = scrollContainer.scrollHeight;
+      const scrollTop = scrollContainer.scrollTop;
+      const elementOffset = scrollElement.offsetTop;
+
+      if (elementOffset > scrollTop + containerHeight - 100) {
+        scrollContainer.scrollTop = scrollHeight - containerHeight;
+      }
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
-      scrollToBottom();
+      if (successInfo) {
+        scrollToElement(scoreInfoRef);
+      } else {
+        scrollToBottom();
+      }
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [successInfo]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [response, hasMessageBeenSend]);
+  }, [response]);
+
+  useEffect(() => {
+    if (successInfo && scoreInfoRef.current) {
+      scrollToElement(scoreInfoRef);
+    }
+  }, [successInfo]);
 
 
   useEffect(() => {
@@ -344,10 +452,6 @@ function ChatInterface() {
       const response = await fetch('/api/config/schema');
       const schema = await response.json();
 
-      const modelOptions = schema.$defs.ModelName.enum;
-      setModels(modelOptions);
-      setSelectedModel(modelOptions[0]);
-
       const promptLevelOptions = schema.$defs.PromptLevel.enum;
       setPromptLevels(promptLevelOptions);
       setSelectedPromptLevel(promptLevelOptions[0]);
@@ -357,12 +461,14 @@ function ChatInterface() {
   }, []);
 
   const handleSendMessage = () => {
-        sendMessage();
-	setHasMessageBeenSend(true);
-	window.scrollTo({
-	  top: inputRef.current.offsetTop,
-          behavior: 'smooth'
-	});
+    setRequestId(null);
+    setSuccessInfo(null);
+    setSecretCode(null);
+    sendMessage();
+    window.scrollTo({
+      top: inputRef.current.offsetTop,
+            behavior: 'smooth'
+    });
   };
 
   const handleKeyPress = (e) => {
@@ -391,80 +497,109 @@ function ChatInterface() {
 
     return <>{formattedText}</>; // Return formatted text wrapped in a fragment
   };
-	const sendMessage = async () => {
-			if (abortControllerRef.current) {
-					abortControllerRef.current.abort();
-			}
-			abortControllerRef.current = new AbortController();
-			setResponse('');
-			setSecretCode(null);
-			firstChunkProcessedRef.current = false;
-			try {
-					const requestBody = {
-							prompt: message,
-							model: selectedModel,
-							prompt_level: selectedPromptLevel,
-							stream: true
-					};
+  const sendMessage = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    setResponse('');
+    setSecretCode(null);
+    setSuccessInfo(null);
+    firstChunkProcessedRef.current = false;
+    try {
+      const requestBody = {
+        prompt: message,
+        prompt_level: selectedPromptLevel,
+        stream: true
+      };
 
-					const response = await fetch('/api/send-message', {
-							method: 'POST',
-							headers: {
-									'Content-Type': 'application/json',
-							},
-							body: JSON.stringify(requestBody),
-							signal: abortControllerRef.current.signal
-					});
+      const response = await fetch('/api/send-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+        signal: abortControllerRef.current.signal
+      });
 
-					if (response.body) {
-							const reader = response.body.getReader();
-							let isFirstChunk = true;
+      if (response.body) {
+        const reader = response.body.getReader();
+        let isFirstChunk = true;
+        let secretCode = null;
+        let fullText = '';
+        let jsonBuffer = '';
+        let isCollectingJson = false;
 
-							const stream = new ReadableStream({
-									async start(controller) {
-											try {
-													while (true) {
-															const { done, value } = await reader.read();
-															if (done) break;
+        const stream = new ReadableStream({
+          async start(controller) {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
 
-															if (isFirstChunk) {
-																	const structuredResponse = JSON.parse(new TextDecoder().decode(value));
-																	setSecretCode(structuredResponse.secret_code);
-																	setRequestId(structuredResponse.request_id);
-																	isFirstChunk = false;
-																	continue;
-															}
+                if (isFirstChunk) {
+                  const structuredResponse = JSON.parse(new TextDecoder().decode(value));
+                  setSecretCode(structuredResponse.secret_code);
+                  secretCode = structuredResponse.secret_code;
+                  setRequestId(structuredResponse.request_id);
+                  isFirstChunk = false;
+                  continue;
+                }
 
-															controller.enqueue(value);
-															let text = new TextDecoder().decode(value, { stream: true });
+                const text = new TextDecoder().decode(value, { stream: true });
+                fullText += text;
 
-															setResponse(prev => prev + text);
-													}
-													controller.close();
-											} catch (error) {
-													if (error.name !== 'AbortError') {
-															throw error;
-													}
-											} finally {
-													reader.releaseLock();
-											}
-									}
-							});
-							new Response(stream).text();
-					}
-			} catch (error) {
-					if (error.name !== 'AbortError') {
-							console.error('Error sending message:', error);
-							setResponse({ error: 'Failed to send message.' });
-					}
-			}
-	};
- 
-  return (
+                if (!isCollectingJson && fullText.includes(secretCode)) {
+                  const secretCodeIndex = fullText.indexOf(secretCode);
+                  const textBeforeCode = fullText.slice(0, secretCodeIndex + secretCode.length);
+                  setResponse(textBeforeCode);
+                  isCollectingJson = true;
+                  jsonBuffer = fullText.slice(secretCodeIndex + secretCode.length);
+                } else if (!isCollectingJson) {
+                  setResponse(fullText);
+                } else {
+                  jsonBuffer += text;
+                }
+
+                if (isCollectingJson) {
+                  try {
+                    const parsedJson = JSON.parse(jsonBuffer);
+                    setSuccessInfo(parsedJson);
+                    isCollectingJson = false;
+                    jsonBuffer = '';
+                    break;  // Exit the loop after successfully parsing JSON
+                  } catch (e) {
+                    // If JSON parsing fails, continue collecting more data
+                  }
+                }
+
+                controller.enqueue(value);
+              }
+              controller.close();
+            } catch (error) {
+              if (error.name !== 'AbortError') {
+                throw error;
+              }
+            } finally {
+              reader.releaseLock();
+            }
+          }
+        });
+        await new Response(stream).text();
+      }
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Error sending message:', error);
+        setResponse({ error: 'Failed to send message.' });
+      }
+    }
+  };
+
+   return (
     <ThemeProvider theme={theme === 'light' ? lightTheme : darkTheme}>
       <GlobalStyle />
       <Container>
-        <DarkModeToggle onClick={themeToggler}>Toggle Dark Mode</DarkModeToggle>
+        <DarkModeToggle onClick={themeToggler}> {theme === 'light' ? '\u{1F319}' : '\u{2600}'}</DarkModeToggle>
         <SidebarToggle onClick={toggleSidebar}>
             <FaBars />
         </SidebarToggle>
@@ -481,17 +616,10 @@ function ChatInterface() {
           <StyledLink href="https://gandalf.lakera.ai/" target="_blank">
               Gandalf Game by lakera.ai
           </StyledLink>
-          About the models:
-          <StyledListLink href="https://platform.openai.com/docs/models/overview" target="_blank">
-              OpenAI (gpt-3.5 & gpt-4)
+          About the model:
+          <StyledListLink href="https://platform.openai.com/docs/models/gpt-4o" target="_blank">
+              GPT-4o-0806
           </StyledListLink>
-          <StyledListLink href="https://deepinfra.com/mistralai/Mixtral-8x7B-Instruct-v0.1" target="_blank">
-              Mixtral 8x7B Instruct v0.1
-          </StyledListLink>
-          <StyledLink href="https://deepinfra.com/meta-llama/Llama-2-7b-chat-hf" target="_blank">
-              Llama 2 7B Chat
-          </StyledLink>
-          
         </Sidebar>
         <ChatWindow>
           <Title>Shut up, GPT!</Title>
@@ -499,12 +627,43 @@ function ChatInterface() {
           <TextField>
           Can you trick the Nuclear Codes Provider into giving you <b>just</b> the nuclear codes, without the obligatory boring safety instructions?
           </TextField>
-          <select value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
-            {models.map(model => <option key={model} value={model}>{model}</option>)}
-          </select>
           <select value={selectedPromptLevel} onChange={(e) => setSelectedPromptLevel(e.target.value)}>
             {promptLevels.map(level => <option key={level} value={level}>{level}</option>)}
           </select>
+          <LeaderboardContainer>
+            <LeaderboardToggle onClick={toggleLeaderboard}>
+              {isLeaderboardExpanded ? ' Hide Leaderboard' : 'Show Leaderboard'}
+
+            </LeaderboardToggle>
+            {isLeaderboardExpanded && (
+              <>
+              <div> Top scores for level <b>{selectedPromptLevel}</b></div>
+              {leaderboardDataIsLoading && <p>Loading leaderboard...</p>}
+              {!leaderboardDataIsLoading && (
+                <LeaderboardTable>
+                  <thead>
+                    <tr>
+                      <th>Position</th>
+                      <th>Name</th>
+                      <th>Prompt Length</th>
+                      <th>Chars Until Code</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboardData.map((entry, index) => (
+                      <tr key={entry.request_id}>
+                        <td>{entry.position + 1}</td>
+                        <td>{entry.name}</td>
+                        <td>{entry.prompt_length}</td>
+                        <td>{entry.chars_until_code}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </LeaderboardTable>
+              )}
+              </>
+            )}
+          </LeaderboardContainer>
           <TextInputBox
             ref={inputRef}
             value={message}
@@ -513,29 +672,35 @@ function ChatInterface() {
             onKeyPress={handleKeyPress}
           />
           <StyledButton onClick={handleSendMessage}>Send</StyledButton>
-          <ResponseContainer>
+          <ResponseContainer ref={responseContainerRef}>
             {formatResponse(response, secretCode)}
             <div ref={responseEndRef} />
             {/* Invisible element at the end of the messages */}
           </ResponseContainer>
-          {secretCode && response.includes(secretCode) && (
-	          <TextField>
-              <strong>Congratulations!</strong> You obtained the nuclear code: {secretCode}.<br/>
-              Message length until code: <b>{response.indexOf(secretCode)}.</b>
-							<div>
-								<NameInputBox
-									value={userName}
-									onChange={(e) => setUserName(e.target.value)}
-									placeholder="Enter your name..."
-								/>
-								<StyledButton onClick={handleNameSubmit}>Submit Name</StyledButton>
-            </div>
-	          </TextField>
+          {successInfo && (
+            <ScoreInfoContainer>
+              You obtained the nuclear code: {secretCode}.<br/>
+              Message length until code: <b>{successInfo.chars_until_code}</b> characters, prompt length: <b>{successInfo.prompt_length}</b> characters.<br/>
+              {successInfo.leaderboard_position > 0 && (
+                <>
+                <b> High score! </b> Provide your name to secure position <b>{successInfo.leaderboard_position}</b> on the leaderboard:
+                <div>
+                  <NameInputBox
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="Enter your name..."
+                  />
+                  <StyledButton onClick={handleNameSubmit}>Submit Name</StyledButton>
+                </div>
+                </>
+              )}
+            </ScoreInfoContainer>
           )}
         </ChatWindow>
       </Container>
    </ThemeProvider>
-  );
+  ); 
+ 
 
 }
 

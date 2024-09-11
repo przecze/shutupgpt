@@ -13,10 +13,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, create_model
 from langchain_community.llms import DeepInfra
 
+from loguru import logger
+
 
 class ModelName(Enum):
     gpt_3_5_turbo = "gpt-3.5-turbo"
-    gpt_4o = "gpt-4o"
+    gpt_4o = "gpt-4o-2024-08-06"
     llama2_7b = "meta-llama/Llama-2-7b-chat-hf"
     mixtral = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
@@ -64,7 +66,7 @@ deepinfra_client = openai.OpenAI(
 
 class SendMessageRequest(BaseModel):
     prompt: str
-    model: ModelName
+    model: ModelName = ModelName.gpt_4o
     prompt_level: PromptLevel
     stream: bool = True
 
@@ -123,6 +125,7 @@ async def send_message(request: SendMessageRequest):
             "request_id": request_id
         }
         yield json.dumps(structured_response).encode() + b"\n"
+        await asyncio.sleep(0.1)
 
         # Then stream the actual response
         chatgpt_response = ""
@@ -138,18 +141,59 @@ async def send_message(request: SendMessageRequest):
             chatgpt_response += chunk
             yield chunk.encode()
             if secret_code in chatgpt_response:
+                chars_until_code = chatgpt_response.index(secret_code)
+                prompt_length = len(request.prompt)
                 leaderboard = read_leaderboard()
                 leaderboard['responses'].append({
                     "request_id": request_id,
                     "model": request.model.value,
                     "prompt_level": request.prompt_level.value,
+                    "prompt_length": prompt_length,
                     "prompt": request.prompt,
-                    "response": chatgpt_response
+                    "secret_code": secret_code,
+                    "response": chatgpt_response,
+                    "chars_until_code": chars_until_code
                 })
+                current_scores = sorted((r['chars_until_code'], -r['prompt_length'], r['request_id'])
+                                        for r in leaderboard['responses']
+                                        if r['model'] == request.model.value and r['prompt_level'] == request.prompt_level.value)
+                sorted_request_ids = [r[2] for r in current_scores]
+                current_response_position = sorted_request_ids.index(request_id) + 1
+                success_response = {
+                    "prompt_length": prompt_length,
+                    "chars_until_code": chars_until_code,
+                    "leaderboard_position": current_response_position if current_response_position < 10 else -1
+                }
                 write_leaderboard(leaderboard)
+                logger.info(success_response)
+                await asyncio.sleep(0.2)
+                yield json.dumps(success_response).encode()
                 break
 
     return StreamingResponse(response_generator(), media_type="application/octet-stream")
+
+@app.get("/leaderboard")
+async def get_leaderboard(prompt_level: PromptLevel,
+                          model: ModelName = ModelName.gpt_4o):
+    leaderboard = read_leaderboard()
+    filtered_responses = [r for r in leaderboard['responses']
+                          if r['model'] == model.value
+                          and r['prompt_level'] == prompt_level.value]
+    current_scores = sorted(
+		(r['chars_until_code'], -r['prompt_length'], r['request_id'])
+        for r in filtered_responses)
+    sorted_request_ids = [r[2] for r in current_scores]
+    response = []
+    for i, request_id in enumerate(sorted_request_ids):
+        request_id_entry = [r for r in filtered_responses if r['request_id'] == request_id][0]
+        response.append({
+            "request_id": request_id,
+            "prompt_length": request_id_entry['prompt_length'],
+            "chars_until_code": request_id_entry['chars_until_code'],
+            "name": request_id_entry.get('name', "???"),
+            "position": i
+        })
+    return response
 
 class SetLeaderboardNameRequest(BaseModel):
     request_id: str

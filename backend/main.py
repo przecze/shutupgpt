@@ -154,7 +154,7 @@ async def send_message(request: SendMessageRequest):
                     "response": chatgpt_response,
                     "chars_until_code": chars_until_code
                 })
-                current_scores = sorted((r['chars_until_code'], -r['prompt_length'], r['request_id'])
+                current_scores = sorted((r['chars_until_code'], r['prompt_length'], r['request_id'])
                                         for r in leaderboard['responses']
                                         if r['model'] == request.model.value and r['prompt_level'] == request.prompt_level.value)
                 sorted_request_ids = [r[2] for r in current_scores]
@@ -180,8 +180,9 @@ async def get_leaderboard(prompt_level: PromptLevel,
                           if r['model'] == model.value
                           and r['prompt_level'] == prompt_level.value]
     current_scores = sorted(
-		(r['chars_until_code'], -r['prompt_length'], r['request_id'])
+		(r['chars_until_code'], r['prompt_length'], r['request_id'])
         for r in filtered_responses)
+    logger.info(current_scores)
     sorted_request_ids = [r[2] for r in current_scores]
     response = []
     for i, request_id in enumerate(sorted_request_ids):

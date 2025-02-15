@@ -650,7 +650,7 @@ function ChatInterface() {
                     </tr>
                   </thead>
                   <tbody>
-                    {leaderboardData.map((entry, index) => (
+                    {leaderboardData.slice(0,10).map((entry, index) => (
                       <tr key={entry.request_id}>
                         <td>{entry.position + 1}</td>
                         <td>{entry.name}</td>

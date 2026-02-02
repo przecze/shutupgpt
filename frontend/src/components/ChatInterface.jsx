@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useTransition } from 'react';
 import { FaGithub, FaBars } from 'react-icons/fa';
 import styles from './ChatInterface.module.css';
 
@@ -18,7 +18,7 @@ function ChatInterface() {
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [hasMessageBeenSend, setHasMessageBeenSend] = useState(false);
   const [leaderboardData, setLeaderboardData] = useState([]);
-  const [leaderboardDataIsLoading, setLeaderboardDataIsLoading] = useState(false);
+  const [isLeaderboardPending, startLeaderboardTransition] = useTransition();
   const [isLeaderboardExpanded, setIsLeaderboardExpanded] = useState(false);
   const [theme, setTheme] = useState('dark');
 
@@ -71,15 +71,15 @@ function ChatInterface() {
     }
   };
 
-  const fetchLeaderboard = async () => {
-    setLeaderboardDataIsLoading(true);
-    const response = await fetch(`/api/leaderboard?prompt_level=${selectedPromptLevel}`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch leaderboard');
-    }
-    const data = await response.json();
-    setLeaderboardData(data);
-    setLeaderboardDataIsLoading(false);
+  const fetchLeaderboard = () => {
+    startLeaderboardTransition(async () => {
+      const response = await fetch(`/api/leaderboard?prompt_level=${selectedPromptLevel}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard');
+      }
+      const data = await response.json();
+      setLeaderboardData(data);
+    });
   };
 
   const inputRef = useRef(null);
@@ -337,8 +337,8 @@ function ChatInterface() {
           {isLeaderboardExpanded && (
             <>
               <div> Top scores for level <b>{selectedPromptLevel}</b></div>
-              {leaderboardDataIsLoading && <p>Loading leaderboard...</p>}
-              {!leaderboardDataIsLoading && (
+              {isLeaderboardPending && <p>Loading leaderboard...</p>}
+              {!isLeaderboardPending && (
                 <table className={styles.leaderboardTable}>
                   <thead>
                     <tr>

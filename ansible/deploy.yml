@@ -11,7 +11,6 @@
 # 2. PROTECTED FILES (NEVER OVERWRITTEN):
 #    - leaderboard.json - excluded from rsync
 #    - openai_api_key - excluded from rsync
-#    - deepinfra_api_key - excluded from rsync
 #
 # 3. NGINX-PROXY INTEGRATION:
 #    - Connects to existing nginx-proxy network (external: true)
@@ -57,9 +56,13 @@
           # CRITICAL: Exclude protected production files
           - "--exclude=backend/leaderboard.json"
           - "--exclude=backend/openai_api_key"
-          - "--exclude=backend/deepinfra_api_key"
           - "--exclude=leaderboard.json"
           - "--exclude=*.backup.*"
+
+    - name: Remove deprecated deepinfra_api_key file
+      ansible.builtin.file:
+        path: "{{ project_dir }}/backend/deepinfra_api_key"
+        state: absent
 
     - name: Stop existing containers
       ansible.builtin.shell: |

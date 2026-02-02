@@ -1,7 +1,6 @@
 # Backend
 backend/__pycache__/*
 backend/openai_api_key
-backend/deepinfra_api_key
 backend/leaderboard.json
 
 # Leaderboard data (production)
@@ -33,9 +32,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .venv/
-venv/
-
-# IDE
+venv/# IDE
 .vscode/
 .idea/
 .DS_Store

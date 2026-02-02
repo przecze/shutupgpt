@@ -11,16 +11,11 @@ import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, create_model
-from langchain_community.llms import DeepInfra
-
 from loguru import logger
 
 
 class ModelName(Enum):
-    gpt_3_5_turbo = "gpt-3.5-turbo"
     gpt_4o = "gpt-4o-2024-08-06"
-    llama2_7b = "meta-llama/Llama-2-7b-chat-hf"
-    mixtral = "mistralai/Mixtral-8x7B-Instruct-v0.1"
 
 class PromptLevel(Enum):
     lvl_1 = "Level 1"
@@ -60,9 +55,6 @@ def generate_random_code(length=16):
 app = FastAPI(root_path="/api")
 
 openai_client = openai.OpenAI(api_key = Path('./openai_api_key').read_text().strip('\n'))
-deepinfra_client = openai.OpenAI(
-        api_key = Path('./deepinfra_api_key').read_text().strip('\n'),
-        base_url = "https://api.deepinfra.com/v1/openai")
 
 class SendMessageRequest(BaseModel):
     prompt: str
@@ -81,7 +73,9 @@ def get_config_schema():
     return request_model.schema()
 
 def get_chatgpt_response(user_input, model, prompt_version, stream=True, secret_code=None):
-    client = openai_client if model.value.startswith("gpt-") else deepinfra_client
+    if model != ModelName.gpt_4o:
+        raise HTTPException(status_code=401, detail="Only gpt-4o model is allowed")
+    client = openai_client
     system_prompt = SYSTEM_PROMPTS[prompt_version]
     additional_prompt = None
     if type(system_prompt) == tuple:

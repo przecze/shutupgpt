@@ -1,15 +1,14 @@
-# Use the official Python image with a tagged version
-FROM python:3.11-slim
+FROM python:3.14-slim
 
-# Set the working directory to /app
 WORKDIR /app
 
-# Copy the current directory contents into the container at /app
-COPY . /app
+# Install dependencies
+COPY requirements.txt .
+RUN pip install "uv==0.9.28" && uv pip install --system --no-cache-dir -r requirements.txt
 
-# Install any needed packages specified in requirements.txt
-RUN pip install uv && uv pip install --no-cache-dir --system -r requirements.txt
+# Copy application code
+COPY . .
 
-# Run main.py when the container launches
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+EXPOSE 8000
 
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -1,0 +1,85 @@
+# =============================================================================
+# SHUTUPGPT PROJECT DEPLOYMENT PLAYBOOK
+# =============================================================================
+#
+# SAFETY GUARANTEES:
+#
+# 1. TARGET DIRECTORY: Only /srv/projects/shutupgpt is touched
+#    - All file operations use project_dir variable
+#    - The synchronize task has explicit dest: /srv/projects/shutupgpt/
+#
+# 2. PROTECTED FILES (NEVER OVERWRITTEN):
+#    - leaderboard.json - excluded from rsync
+#    - openai_api_key - excluded from rsync
+#    - deepinfra_api_key - excluded from rsync
+#
+# 3. NGINX-PROXY INTEGRATION:
+#    - Connects to existing nginx-proxy network (external: true)
+#    - Sets VIRTUAL_HOST=shutupgpt.janczechowski.com
+#    - Sets LETSENCRYPT_HOST=shutupgpt.janczechowski.com
+#    - Does NOT modify /srv/projects/nginx-proxy/ files
+#
+# 4. DOCKER COMMANDS: Only these docker operations are performed:
+#    - docker compose down (stop existing containers)
+#    - docker compose build (build images)
+#    - docker compose up -d (start containers)
+#    All scoped to /srv/projects/shutupgpt/docker-compose.yml
+#
+# =============================================================================
+
+- name: Deploy shutupgpt project
+  hosts: bluh
+  
+  vars:
+    project_dir: /srv/projects/shutupgpt
+
+  tasks:
+    - name: Ensure project directory exists
+      ansible.builtin.file:
+        path: "{{ project_dir }}"
+        state: directory
+        mode: '0755'
+
+    - name: Sync project files to server
+      ansible.posix.synchronize:
+        src: "{{ playbook_dir }}/../"
+        dest: "{{ project_dir }}/"
+        delete: no
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=.venv"
+          - "--exclude=venv"
+          - "--exclude=node_modules"
+          - "--exclude=__pycache__"
+          - "--exclude=*.pyc"
+          - "--exclude=ansible"
+          - "--exclude=.DS_Store"
+          # CRITICAL: Exclude protected production files
+          - "--exclude=backend/leaderboard.json"
+          - "--exclude=backend/openai_api_key"
+          - "--exclude=backend/deepinfra_api_key"
+          - "--exclude=leaderboard.json"
+          - "--exclude=*.backup.*"
+
+    - name: Stop existing containers
+      ansible.builtin.shell: |
+        cd {{ project_dir }} && docker compose --profile production down --remove-orphans
+      ignore_errors: yes
+
+    - name: Build and start containers (production profile)
+      ansible.builtin.shell: |
+        cd {{ project_dir }} && docker compose --profile production up -d --build
+      register: docker_result
+
+    - name: Show docker compose output
+      ansible.builtin.debug:
+        var: docker_result.stdout_lines
+
+    - name: Check container status
+      ansible.builtin.shell: |
+        cd {{ project_dir }} && docker compose --profile production ps
+      register: ps_result
+
+    - name: Show running containers
+      ansible.builtin.debug:
+        var: ps_result.stdout_lines

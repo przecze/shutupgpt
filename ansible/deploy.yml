@@ -63,12 +63,12 @@
 
     - name: Stop existing containers
       ansible.builtin.shell: |
-        cd {{ project_dir }} && docker compose --profile production down --remove-orphans
+        cd {{ project_dir }} && docker compose down --remove-orphans
       ignore_errors: yes
 
     - name: Build and start containers (production profile)
       ansible.builtin.shell: |
-        cd {{ project_dir }} && docker compose --profile production up -d --build
+        cd {{ project_dir }} && docker compose --profile production up -d --build backend site
       register: docker_result
 
     - name: Show docker compose output
@@ -77,7 +77,7 @@
 
     - name: Check container status
       ansible.builtin.shell: |
-        cd {{ project_dir }} && docker compose --profile production ps
+        cd {{ project_dir }} && docker compose ps
       register: ps_result
 
     - name: Show running containers

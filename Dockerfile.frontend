@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for frontend dev and production
 # Build context should be project root
 
-FROM node:18-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -27,7 +27,7 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 
 # Development stage - just node with dependencies
-FROM node:18-alpine AS development
+FROM node:24-alpine AS development
 
 WORKDIR /app
 
@@ -40,4 +40,4 @@ COPY frontend/ .
 
 EXPOSE 3000
 
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "3000"]
+CMD ["npm", "run", "dev"]

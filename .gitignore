@@ -9,9 +9,7 @@ leaderboard.json
 # Swap files
 *.*.swp
 *.swp
-*~
-
-# Frontend - Node.js and build artifacts
+*~# Frontend - Node.js and build artifacts
 frontend/node_modules/
 frontend/.pnp
 frontend/.pnp.js
